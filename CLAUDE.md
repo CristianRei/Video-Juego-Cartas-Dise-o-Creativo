@@ -23,7 +23,7 @@
 | Graphics API | **DirectX 11** a propósito, por compatibilidad con PCs de la escuela. No activar Auto Graphics API (DX12) |
 | Input | **Input System nuevo** únicamente (`activeInputHandler: 1`). Acciones del proyecto en `Assets/InputSystem_Actions.inputactions` |
 | MCP | **MCP for Unity** (CoplayDev) `v10.0.0`, transporte HTTP local `http://127.0.0.1:8080`. Hay actualización a v10.3.0 pendiente; no actualizar sin comprobar antes |
-| Control de versiones | Git + Git LFS. Repo en la raíz `Diseño Creativo/`, rama `main`, sin remoto por ahora |
+| Control de versiones | Git + Git LFS. Repo en la raíz `Diseño Creativo/`, rama `main`. Remoto `origin`: https://github.com/CristianRei/Video-Juego-Cartas-Dise-o-Creativo (aquí se trabaja el proyecto). Los modelos, imágenes y audio van por LFS (cuota gratis de GitHub: 1 GB) |
 | Blender | **No se usa por ahora.** Decisión del usuario: los modelos 3D se descargan de internet |
 
 ### Usar el MCP de Unity
