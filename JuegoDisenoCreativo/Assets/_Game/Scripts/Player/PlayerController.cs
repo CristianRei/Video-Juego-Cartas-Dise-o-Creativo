@@ -33,8 +33,12 @@ public class PlayerController : MonoBehaviour
     float verticalVelocity;
     float actionLockTimer;
     Seat currentSeat;
+    readonly Collider[] overlapBuffer = new Collider[16];
 
     public bool IsSitting => currentSeat != null;
+    public Seat CurrentSeat => currentSeat;
+    // Objeto con el que se interactuaría al presionar E ahora mismo (null si no hay ninguno).
+    public IInteractable FocusedInteractable { get; private set; }
 
     void Awake()
     {
@@ -57,9 +61,12 @@ public class PlayerController : MonoBehaviour
         // Sentado: solo se puede levantar con E.
         if (currentSeat != null)
         {
+            FocusedInteractable = null;
             if (interactAction.WasPressedThisFrame()) currentSeat.Interact(this);
             return;
         }
+
+        FocusedInteractable = FindInteractable();
 
         bool grounded = controller.isGrounded;
 
@@ -105,9 +112,9 @@ public class PlayerController : MonoBehaviour
                 animator?.SetTrigger(AttackHash);
                 actionLockTimer = attackDuration;
             }
-            else if (interactAction.WasPressedThisFrame())
+            else if (FocusedInteractable != null && interactAction.WasPressedThisFrame())
             {
-                TryInteract();
+                Interact(FocusedInteractable);
             }
         }
 
@@ -118,20 +125,34 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void TryInteract()
+    // Busca el interactuable disponible más cercano frente al jugador.
+    IInteractable FindInteractable()
     {
         Vector3 center = transform.position + transform.forward * interactRadius + Vector3.up * 0.3f;
-        foreach (var hit in Physics.OverlapSphere(center, interactRadius))
+        int count = Physics.OverlapSphereNonAlloc(center, interactRadius, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+        IInteractable best = null;
+        float bestDistance = float.MaxValue;
+        for (int i = 0; i < count; i++)
         {
-            var interactable = hit.GetComponentInParent<IInteractable>();
+            var interactable = overlapBuffer[i].GetComponentInParent<IInteractable>();
             if (interactable == null || !interactable.CanInteract(this)) continue;
-            interactable.Interact(this);
-            if (!IsSitting)
+            float distance = (overlapBuffer[i].ClosestPoint(transform.position) - transform.position).sqrMagnitude;
+            if (distance < bestDistance)
             {
-                animator?.SetTrigger(InteractHash);
-                actionLockTimer = attackDuration;
+                bestDistance = distance;
+                best = interactable;
             }
-            return;
+        }
+        return best;
+    }
+
+    void Interact(IInteractable interactable)
+    {
+        interactable.Interact(this);
+        if (!IsSitting)
+        {
+            animator?.SetTrigger(InteractHash);
+            actionLockTimer = attackDuration;
         }
     }
 

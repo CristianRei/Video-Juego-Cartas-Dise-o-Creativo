@@ -33,6 +33,8 @@
 - `execute_code` compila con CodeDom (**C# 6**): no usar LINQ sin `using`, ni tuplas, ni pattern matching moderno dentro de ese código. Los scripts `.cs` del proyecto sí pueden usar C# moderno.
 - Después de crear o editar scripts: `refresh_unity` → `read_console` para ver errores de compilación.
 - Unity **no puede ejecutarse en batchmode** (`-batchmode`) en este PC: falla la licencia. Todo se hace con el editor abierto y el MCP.
+- Después de recompilar, Unity a veces no se reconecta al MCP si su ventana está en segundo plano. Hay que pedirle al usuario que haga clic en Unity. Se puede saber si sigue compilando mirando el título de la ventana (proceso `Unity`, contiene "Compiling" o "busy").
+- **Probar en Play desde el MCP:** con Unity sin foco, el modo Play casi no avanza cuadros (`Time.frameCount` se queda quieto). Se avanza a mano con `EditorApplication.isPaused = true` + `EditorApplication.Step()` en un bucle (síncrono) y luego se saca la captura. Al detener Play se quita la pausa.
 
 ---
 
@@ -59,7 +61,7 @@ Diseño Creativo/                    ← raíz del repo git
             ├── Scripts/
             │   ├── Player/         PlayerController.cs, CameraFollow.cs
             │   ├── Gameplay/       IInteractable.cs, Openable.cs, Seat.cs, Collectible.cs
-            │   ├── UI/             GameHUD.cs
+            │   ├── UI/             GameHUD.cs, InteractionPromptUI.cs
             │   ├── Managers/       (vacío)
             │   └── Editor/         MiniDungeonBuilder.cs
             ├── Models/
@@ -101,20 +103,22 @@ Diseño Creativo/                    ← raíz del repo git
 - Lee acciones de `InputSystem.actions` (acciones a nivel de proyecto): `Player/Move`, `Jump`, `Sprint`, `Attack`, `Interact`.
 - Velocidades: caminar 1.6, correr 3.2, salto 0.6 u, gravedad −15.
 - Atacar e interactuar bloquean el movimiento durante `attackDuration` (0.5 s).
-- Interactuar: `OverlapSphere` frente al jugador; busca el primer `IInteractable` cuyo `CanInteract` sea verdadero y llama a `Interact`.
-- Sentarse: `SitOn(seat)` desactiva el `CharacterController`, coloca al jugador en `seat.SitPosition` y activa `Sit`. Mientras está sentado, E llama de nuevo al asiento, que ejecuta `StandUp()` (lo deja detrás de la silla).
+- Interactuar: en cada cuadro, `FindInteractable()` hace un `OverlapSphereNonAlloc` frente al jugador y guarda en `FocusedInteractable` el `IInteractable` disponible (`CanInteract`) más cercano; la UI de ayuda lo usa. E llama a `Interact` sobre ese objeto.
+- Sentarse: `SitOn(seat)` desactiva el `CharacterController`, coloca al jugador en `seat.SitPosition` y activa `Sit`. Mientras está sentado (`IsSitting`, `CurrentSeat`), E llama de nuevo al asiento, que ejecuta `StandUp()` (lo deja detrás de la silla).
 - Parámetros del Animator: `Speed` (float), `Grounded` (bool), `Sit` (bool), `Jump`, `Attack`, `Interact` (triggers).
 
 ### `IInteractable.cs` (Gameplay/)
-- Interfaz para todo lo que se usa con E: `CanInteract(player)` e `Interact(player)`. La implementan `Openable` y `Seat`. Las cosas nuevas que se puedan usar con E deben implementarla.
+- Interfaz para todo lo que se usa con E: `CanInteract(player)`, `Interact(player)`, `GetPrompt(player)` (texto de la ayuda, por ejemplo "Sentarse" o "Abrir") y `PromptPosition` (punto del mundo donde se dibuja la ayuda). La implementan `Openable` y `Seat`. Las cosas nuevas que se puedan usar con E deben implementarla.
 
 ### `Seat.cs` (Gameplay/)
-- Va en la raíz de una silla, cuyo frente es el eje Z local. `sitOffset` = (0, 0.30, 0.03): la animación `sit` de Kenney es para sentarse **en el suelo** (cadera unos 0.11 bajo el origen) y el asiento de `chair` está a 0.19 de alto.
+- Va en la raíz de una silla, cuyo frente es el eje Z local. `sitOffset` = (0, 0.30, 0.13): la animación `sit` de Kenney es para sentarse **en el suelo** (cadera unos 0.11 bajo el origen) y el asiento de `chair` está a 0.19 de alto. Z = 0.13 lo adelanta para que el respaldo quede detrás del personaje y no se vea "fusionado" con él (con 0.03 se veía así).
 - `seatedAtStart`: Animator de un personaje (no jugador) que empieza sentado. En `Start` lo coloca y activa `Sit`. Una silla ocupada no deja sentarse al jugador.
 
 ### `CameraFollow.cs` (Player/)
 - Cámara orbital en tercera persona, vista elevada tipo diorama (pitch 50°, distancia 6, FOV 40).
 - Clic derecho + mouse para girar, rueda para zoom (2.5–9). Sigue al jugador con suavizado.
+- **Vista de mesa al sentarse:** cuando el jugador se sienta, pasa en 0.5 s (`transitionSpeed` 2) a una vista **en primera persona** desde los ojos del personaje, mirando la mesa y al rival (`seatedBack` −0.15, `seatedHeight` 1.05, `seatedLookAhead` 1.0, `seatedLookHeight` 0.5, FOV 55). Al levantarse vuelve a la órbita. Mientras está sentado se desactivan el giro y el zoom.
+- Se eligió la primera persona porque, con los personajes cabezones, cualquier cámara detrás de la cabeza tapa la mesa. Da un estilo de juego de cartas de mesa (tipo *Inscryption*).
 
 ### `Openable.cs` (Gameplay/)
 - Abre y cierra con el bool `Open` del Animator. Tiene un `blockingCollider` opcional que se desactiva al abrir (lo usa la reja).
@@ -124,6 +128,11 @@ Diseño Creativo/                    ← raíz del repo git
 
 ### `GameHUD.cs` (UI/)
 - HUD **provisional** con `OnGUI`: contador de monedas, llaves y pociones, más una línea de controles. Los contadores son estáticos y se reinician en `Awake`. Reemplazar por UI real (uGUI o UI Toolkit) cuando haya reglas.
+
+### `InteractionPromptUI.cs` (UI/)
+- Ayuda de la tecla E (provisional, con `OnGUI`): un panel oscuro con un dibujo de la tecla **E** y el texto de la acción.
+- De pie: flota sobre `FocusedInteractable.PromptPosition` con un leve vaivén ("[E] Sentarse", "[E] Abrir" o "[E] Cerrar").
+- Sentado: fijo **abajo a la izquierda** con "[E] Levantarse".
 
 ### `MiniDungeonBuilder.cs` (Editor/)
 - Menú **Tools → Mini Dungeon → Construir escena demo** (y **Configurar modelos**).
@@ -154,6 +163,8 @@ WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E inter
 
 - 2026-10-16 — **El juego es un juego de cartas en 3D.** Las reglas concretas y cómo va a funcionar se definen más adelante.
 - 2026-10-16 — Hay una **mesa de juego en el centro del calabozo**. El orco espera sentado en un extremo y el jugador se sienta en el otro con E. Ahí se jugarán las partidas.
+- 2026-10-16 — Al acercarse a la silla aparece la ayuda "[E] Sentarse". Sentado, aparece "[E] Levantarse" abajo a la izquierda.
+- 2026-10-16 — Al sentarse, la cámara pasa a **primera persona mirando la mesa y al rival**, para que se sienta como un juego de cartas.
 
 ### Preguntas abiertas
 - Reglas del juego de cartas: tipos de cartas, turnos, cómo se gana y cómo se pierde una partida.
@@ -188,6 +199,6 @@ WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E inter
 
 1. El usuario prueba la escena MiniDungeon (incluido sentarse a la mesa) y da retroalimentación.
 2. Definir las reglas del juego de cartas (§6) y escribir el GDD en `Docs/`.
-3. Al sentarse: cámara enfocada en la mesa y estructura base de una partida (mazo, mano, turnos), sin esperar a tener todas las reglas.
+3. Al sentarse: estructura base de una partida (mazo, mano, turnos), sin esperar a tener todas las reglas. La cámara de mesa ya está.
 4. Según las reglas: modelos o texturas de cartas, IA del rival, menú principal, pausa, UI real, sonido y una build de Windows.
 4. Evaluar la actualización de MCP for Unity a v10.3.0.

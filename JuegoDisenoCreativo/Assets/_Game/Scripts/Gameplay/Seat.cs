@@ -5,7 +5,7 @@ using UnityEngine;
 public class Seat : MonoBehaviour, IInteractable
 {
     [Tooltip("Posición local del personaje sentado, relativa a la silla.")]
-    public Vector3 sitOffset = new Vector3(0f, 0.30f, 0.03f);
+    public Vector3 sitOffset = new Vector3(0f, 0.30f, 0.13f);
     [Tooltip("Distancia detrás de la silla donde queda el jugador al levantarse.")]
     public float standDistance = 0.5f;
     [Tooltip("Personaje (no jugador) que empieza sentado aquí.")]
@@ -28,6 +28,10 @@ public class Seat : MonoBehaviour, IInteractable
     }
 
     public bool CanInteract(PlayerController player) => !IsOccupied || occupant == player;
+
+    public string GetPrompt(PlayerController player) => occupant == player ? "Levantarse" : "Sentarse";
+
+    public Vector3 PromptPosition => transform.position + Vector3.up * 0.75f;
 
     public void Interact(PlayerController player)
     {

@@ -21,6 +21,10 @@ public class Openable : MonoBehaviour, IInteractable
 
     public void Interact(PlayerController player) => Toggle();
 
+    public string GetPrompt(PlayerController player) => isOpen ? "Cerrar" : "Abrir";
+
+    public Vector3 PromptPosition => transform.position + Vector3.up * 0.8f;
+
     public void Toggle()
     {
         isOpen = !isOpen;

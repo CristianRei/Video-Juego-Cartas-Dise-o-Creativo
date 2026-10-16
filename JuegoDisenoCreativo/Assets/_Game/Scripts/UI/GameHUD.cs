@@ -30,6 +30,6 @@ public class GameHUD : MonoBehaviour
         var help = new GUIStyle(GUI.skin.label) { fontSize = 14 };
         help.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
         GUI.Label(new Rect(20, Screen.height - 30, 900, 25),
-            "WASD mover · Shift correr · Espacio saltar · Clic izq. atacar · E abrir · Clic der. + mouse girar cámara · Rueda zoom", help);
+            "WASD mover · Shift correr · Espacio saltar · Clic izq. atacar · E interactuar · Clic der. + mouse girar cámara · Rueda zoom", help);
     }
 }

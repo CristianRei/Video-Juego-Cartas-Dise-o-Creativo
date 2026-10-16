@@ -22,7 +22,7 @@ public static class MiniDungeonBuilder
     const float ChairDistance = 0.8f;
     // La animación "sit" de Kenney es para sentarse en el suelo (cadera ~0.11 bajo el origen);
     // el asiento de la silla está a 0.19, así que se sube 0.30.
-    static readonly Vector3 SitOffset = new Vector3(0f, 0.30f, 0.03f);
+    static readonly Vector3 SitOffset = new Vector3(0f, 0.30f, 0.13f);
 
     static Transform level;
     static System.Random rng;
@@ -68,6 +68,7 @@ public static class MiniDungeonBuilder
 
         var systems = new GameObject("GameSystems");
         systems.AddComponent<GameHUD>();
+        systems.AddComponent<InteractionPromptUI>().player = player.GetComponent<PlayerController>();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -393,8 +394,10 @@ public static class MiniDungeonBuilder
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.17f, 0.17f, 0.21f);
         cam.fieldOfView = 40f;
-        var follow = cam.GetComponent<CameraFollow>();
-        if (follow == null) follow = cam.gameObject.AddComponent<CameraFollow>();
+        // Se vuelve a crear para que tome los valores por defecto actuales del script.
+        var old = cam.GetComponent<CameraFollow>();
+        if (old != null) Object.DestroyImmediate(old);
+        var follow = cam.gameObject.AddComponent<CameraFollow>();
         follow.target = player.transform;
         follow.distance = 6f;
         follow.pitch = 50f;
