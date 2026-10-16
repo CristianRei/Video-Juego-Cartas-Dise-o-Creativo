@@ -45,3 +45,7 @@ crashlytics-buildid.txt
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 /[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Capturas de prueba del MCP
+/[Aa]ssets/[Ss]creenshots/
+/[Aa]ssets/[Ss]creenshots.meta
