@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Game/Scenes/MiniDungeon.unity
+    guid: 7ebe781224b06a3498d1e333ca6d4f81
+  - enabled: 1
     path: Assets/_Game/Scenes/Main.unity
     guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:

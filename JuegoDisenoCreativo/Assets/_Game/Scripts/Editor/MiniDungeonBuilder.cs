@@ -17,14 +17,21 @@ public static class MiniDungeonBuilder
     const float WalkSpeed = 1.6f;
     const float SprintSpeed = 3.2f;
 
+    // Mesa de juego y sillas (las sillas van un poco separadas para que quepa el personaje sentado).
+    const float TableZ = 0.5f;
+    const float ChairDistance = 0.8f;
+    // La animación "sit" de Kenney es para sentarse en el suelo (cadera ~0.11 bajo el origen);
+    // el asiento de la silla está a 0.19, así que se sube 0.30.
+    static readonly Vector3 SitOffset = new Vector3(0f, 0.30f, 0.03f);
+
     static Transform level;
     static System.Random rng;
 
     [MenuItem("Tools/Mini Dungeon/Configurar modelos")]
     public static void ConfigureModels()
     {
-        ConfigureAnimated("character-human", "idle", "walk", "sprint");
-        ConfigureAnimated("character-orc", "idle", "walk", "sprint");
+        ConfigureAnimated("character-human", "idle", "walk", "sprint", "sit");
+        ConfigureAnimated("character-orc", "idle", "walk", "sprint", "sit");
         ConfigureAnimated("chest");
         ConfigureAnimated("gate");
         ConfigureAnimated("trap", "show-hide");
@@ -110,6 +117,7 @@ public static class MiniDungeonBuilder
         controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
         controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
         controller.AddParameter("Interact", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Sit", AnimatorControllerParameterType.Bool);
 
         var locomotion = controller.CreateBlendTreeInController("Locomotion", out BlendTree tree, 0);
         tree.blendParameter = "Speed";
@@ -122,6 +130,17 @@ public static class MiniDungeonBuilder
         AddOneShot(sm, locomotion, "Jump", Clip(model, "jump"), "Jump");
         AddOneShot(sm, locomotion, "Attack", Clip(model, "attack-melee-right"), "Attack");
         AddOneShot(sm, locomotion, "Interact", Clip(model, "interact-right"), "Interact");
+
+        var sit = sm.AddState("Sit");
+        sit.motion = Clip(model, "sit");
+        var toSit = locomotion.AddTransition(sit);
+        toSit.AddCondition(AnimatorConditionMode.If, 0f, "Sit");
+        toSit.hasExitTime = false;
+        toSit.duration = 0.1f;
+        var fromSit = sit.AddTransition(locomotion);
+        fromSit.AddCondition(AnimatorConditionMode.IfNot, 0f, "Sit");
+        fromSit.hasExitTime = false;
+        fromSit.duration = 0.1f;
         return controller;
     }
 
@@ -272,12 +291,10 @@ public static class MiniDungeonBuilder
         foreach (var p in new[] { (-2, 2), (2, 2), (-2, -2), (2, -2) })
             Place("column", p.Item1, p.Item2, 0f, 0f, props);
 
-        // Rincón de comedor (sureste).
-        Place("table", 3, -3, 0f, 0f, props);
-        Place("chair", 2.35f, -3, 90f, 0f, props);
-        Place("chair", 3.65f, -3, -90f, 0f, props);
-        var sword = Place("weapon-sword", 3f, -3f, 0f, 0.33f, props, "none");
-        sword.transform.rotation = Quaternion.Euler(90f, 35f, 0f);
+        // Mesa de juego en el centro: el jugador se sienta al oeste (E), el orco al este.
+        Place("table", 0, TableZ, 0f, 0f, props);
+        AddSeat(-ChairDistance, 90f, props);
+        var orcSeat = AddSeat(ChairDistance, -90f, props);
 
         // Armería en el muro este.
         Place("shield-round", 4.4f, 0f, -90f, 0.19f, props, "none");
@@ -309,23 +326,28 @@ public static class MiniDungeonBuilder
         }
 
         // Trampa animada.
-        var trapGo = Place("trap", 0, -1, 0f, 0f, props, "none");
+        var trapGo = Place("trap", -3, -2, 0f, 0f, props, "none");
         SetupAnimator(trapGo, "trap", trap);
 
-        // Orco quieto (futuro enemigo / NPC).
-        var orcGo = Place("character-orc", 2.5f, 2.8f, 200f, 0f, props, "none");
+        // Orco sentado a la mesa (rival de cartas).
+        var orcGo = Place("character-orc", 0f, 0f, 0f, 0f, props, "none");
         orcGo.name = "Orc";
-        SetupAnimator(orcGo, "character-orc", orc);
-        var orcCol = orcGo.AddComponent<CapsuleCollider>();
-        orcCol.center = new Vector3(0f, 0.38f, 0f);
-        orcCol.radius = 0.25f;
-        orcCol.height = 0.76f;
+        orcSeat.seatedAtStart = SetupAnimator(orcGo, "character-orc", orc);
+        orcGo.transform.SetPositionAndRotation(orcSeat.SitPosition, orcSeat.SitRotation);
 
         // Recogibles.
-        foreach (var p in new[] { (-1f, -3f), (1f, -3f), (0f, 2f), (-3f, 1f), (3f, 1.5f), (-1f, 0.5f) })
+        foreach (var p in new[] { (-1f, -3f), (1f, -3f), (0f, 2f), (-3f, 1f), (3f, 1.5f), (-1f, -1.5f) })
             AddPickup("coin", p.Item1, p.Item2, Collectible.Kind.Coin, pickups);
         AddPickup("key", -3.2f, 0f, Collectible.Kind.Key, pickups);
         AddPickup("potion", 2f, -4f, Collectible.Kind.Potion, pickups);
+    }
+
+    static Seat AddSeat(float x, float rotY, Transform parent)
+    {
+        var chair = Place("chair", x, TableZ, rotY, 0f, parent);
+        var seat = chair.AddComponent<Seat>();
+        seat.sitOffset = SitOffset;
+        return seat;
     }
 
     static void AddPickup(string model, float x, float z, Collectible.Kind kind, Transform parent)

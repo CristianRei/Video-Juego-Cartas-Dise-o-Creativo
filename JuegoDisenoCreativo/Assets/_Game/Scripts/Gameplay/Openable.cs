@@ -2,7 +2,7 @@ using UnityEngine;
 
 // Objeto que se abre y cierra con su animación (cofres, rejas).
 // El Animator necesita un parámetro bool "Open".
-public class Openable : MonoBehaviour
+public class Openable : MonoBehaviour, IInteractable
 {
     public bool isOpen;
     [Tooltip("Collider que bloquea el paso mientras está cerrado (por ejemplo, la reja).")]
@@ -16,6 +16,10 @@ public class Openable : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
         Apply();
     }
+
+    public bool CanInteract(PlayerController player) => true;
+
+    public void Interact(PlayerController player) => Toggle();
 
     public void Toggle()
     {

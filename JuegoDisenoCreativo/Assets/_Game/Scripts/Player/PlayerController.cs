@@ -25,12 +25,16 @@ public class PlayerController : MonoBehaviour
     static readonly int AttackHash = Animator.StringToHash("Attack");
     static readonly int InteractHash = Animator.StringToHash("Interact");
     static readonly int GroundedHash = Animator.StringToHash("Grounded");
+    static readonly int SitHash = Animator.StringToHash("Sit");
 
     CharacterController controller;
     Animator animator;
     InputAction moveAction, jumpAction, sprintAction, attackAction, interactAction;
     float verticalVelocity;
     float actionLockTimer;
+    Seat currentSeat;
+
+    public bool IsSitting => currentSeat != null;
 
     void Awake()
     {
@@ -49,6 +53,14 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+
+        // Sentado: solo se puede levantar con E.
+        if (currentSeat != null)
+        {
+            if (interactAction.WasPressedThisFrame()) currentSeat.Interact(this);
+            return;
+        }
+
         bool grounded = controller.isGrounded;
 
         // Dirección según la cámara, aplanada al suelo.
@@ -111,12 +123,37 @@ public class PlayerController : MonoBehaviour
         Vector3 center = transform.position + transform.forward * interactRadius + Vector3.up * 0.3f;
         foreach (var hit in Physics.OverlapSphere(center, interactRadius))
         {
-            var openable = hit.GetComponentInParent<Openable>();
-            if (openable == null) continue;
-            openable.Toggle();
-            animator?.SetTrigger(InteractHash);
-            actionLockTimer = attackDuration;
+            var interactable = hit.GetComponentInParent<IInteractable>();
+            if (interactable == null || !interactable.CanInteract(this)) continue;
+            interactable.Interact(this);
+            if (!IsSitting)
+            {
+                animator?.SetTrigger(InteractHash);
+                actionLockTimer = attackDuration;
+            }
             return;
         }
+    }
+
+    public void SitOn(Seat seat)
+    {
+        currentSeat = seat;
+        controller.enabled = false;
+        transform.SetPositionAndRotation(seat.SitPosition, seat.SitRotation);
+        if (animator != null)
+        {
+            animator.SetFloat(SpeedHash, 0f);
+            animator.SetBool(SitHash, true);
+        }
+    }
+
+    public void StandUp()
+    {
+        if (currentSeat == null) return;
+        transform.position = currentSeat.StandPosition;
+        currentSeat = null;
+        verticalVelocity = 0f;
+        controller.enabled = true;
+        animator?.SetBool(SitHash, false);
     }
 }

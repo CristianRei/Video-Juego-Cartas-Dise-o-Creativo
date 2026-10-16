@@ -9,7 +9,8 @@
 
 - Proyecto para la materia universitaria **Diseño Creativo**. El objetivo es entregar un **videojuego en 3D** (requisito del profesor).
 - El usuario no es programador experto: explicarle los pasos en Unity de forma concreta (qué menú, qué botón) y sin jerga innecesaria.
-- **Estado actual:** prototipo jugable de movimiento en un mini calabozo. **Las reglas del juego todavía no están definidas** (ver §6). Mientras tanto se adelanta la base técnica, que sirve para casi cualquier juego.
+- **Concepto: juego de cartas en 3D.** El jugador recorre un mini calabozo y se sienta a una mesa a jugar cartas contra personajes (por ahora, un orco). **Las reglas de las cartas todavía no están definidas** (ver §6).
+- **Estado actual:** prototipo jugable: moverse por el calabozo, recoger objetos, abrir cofres y la reja, y sentarse a la mesa de juego frente al orco. Todavía no hay cartas.
 
 ---
 
@@ -57,7 +58,7 @@ Diseño Creativo/                    ← raíz del repo git
             ├── Scenes/             Main.unity (vacía, base), MiniDungeon.unity (prototipo)
             ├── Scripts/
             │   ├── Player/         PlayerController.cs, CameraFollow.cs
-            │   ├── Gameplay/       Openable.cs, Collectible.cs
+            │   ├── Gameplay/       IInteractable.cs, Openable.cs, Seat.cs, Collectible.cs
             │   ├── UI/             GameHUD.cs
             │   ├── Managers/       (vacío)
             │   └── Editor/         MiniDungeonBuilder.cs
@@ -100,8 +101,16 @@ Diseño Creativo/                    ← raíz del repo git
 - Lee acciones de `InputSystem.actions` (acciones a nivel de proyecto): `Player/Move`, `Jump`, `Sprint`, `Attack`, `Interact`.
 - Velocidades: caminar 1.6, correr 3.2, salto 0.6 u, gravedad −15.
 - Atacar e interactuar bloquean el movimiento durante `attackDuration` (0.5 s).
-- Interactuar: `OverlapSphere` frente al jugador; llama a `Openable.Toggle()` en el primero que encuentre.
-- Parámetros del Animator: `Speed` (float), `Grounded` (bool), `Jump`, `Attack`, `Interact` (triggers).
+- Interactuar: `OverlapSphere` frente al jugador; busca el primer `IInteractable` cuyo `CanInteract` sea verdadero y llama a `Interact`.
+- Sentarse: `SitOn(seat)` desactiva el `CharacterController`, coloca al jugador en `seat.SitPosition` y activa `Sit`. Mientras está sentado, E llama de nuevo al asiento, que ejecuta `StandUp()` (lo deja detrás de la silla).
+- Parámetros del Animator: `Speed` (float), `Grounded` (bool), `Sit` (bool), `Jump`, `Attack`, `Interact` (triggers).
+
+### `IInteractable.cs` (Gameplay/)
+- Interfaz para todo lo que se usa con E: `CanInteract(player)` e `Interact(player)`. La implementan `Openable` y `Seat`. Las cosas nuevas que se puedan usar con E deben implementarla.
+
+### `Seat.cs` (Gameplay/)
+- Va en la raíz de una silla, cuyo frente es el eje Z local. `sitOffset` = (0, 0.30, 0.03): la animación `sit` de Kenney es para sentarse **en el suelo** (cadera unos 0.11 bajo el origen) y el asiento de `chair` está a 0.19 de alto.
+- `seatedAtStart`: Animator de un personaje (no jugador) que empieza sentado. En `Start` lo coloca y activa `Sit`. Una silla ocupada no deja sentarse al jugador.
 
 ### `CameraFollow.cs` (Player/)
 - Cámara orbital en tercera persona, vista elevada tipo diorama (pitch 50°, distancia 6, FOV 40).
@@ -118,18 +127,19 @@ Diseño Creativo/                    ← raíz del repo git
 
 ### `MiniDungeonBuilder.cs` (Editor/)
 - Menú **Tools → Mini Dungeon → Construir escena demo** (y **Configurar modelos**).
-- Configura los importadores (avatar Generic y loops de `idle`, `walk`, `sprint` y `show-hide`), crea los AnimatorControllers en `_Game/Animations/` y construye `MiniDungeon.unity`.
+- Configura los importadores (avatar Generic y loops de `idle`, `walk`, `sprint`, `sit` y `show-hide`), crea los AnimatorControllers en `_Game/Animations/` y construye `MiniDungeon.unity`.
 - Se puede **volver a ejecutar**: borra y regenera los objetos raíz `Level`, `Player` y `GameSystems`. No toca la cámara, la luz ni el Global Volume. ⚠️ **Los cambios hechos a mano dentro de esos tres objetos se pierden al reconstruir.** Cuando el nivel deba editarse a mano, dejar de usar el builder para esa escena (o convertir las piezas en prefabs).
 - Agrega `MiniDungeon` como escena 0 en Build Settings.
 
 ### Escena `MiniDungeon.unity`
 - Sala de 9×9 baldosas (x, z de −4 a 4), muros en el anillo ±5. El muro sur es `wall-half` para que la cámara vea el interior.
 - Al norte, `wall-opening` con una reja animada que se abre con E, y detrás un pasillo con escaleras.
-- Contenido: 4 columnas, comedor (mesa, sillas, espada), armería en el muro este, barriles, vasijas, rocas, estandartes, 2 cofres que se abren, trampa animada en bucle, un orco quieto en idle (sin IA), 6 monedas, 1 llave y 1 poción.
+- **Mesa de juego en el centro** (`table` en (0, 0.5)), sin nada encima. Dos sillas con `Seat` en x = ±0.8 (constantes `TableZ` y `ChairDistance` del builder), mirando a la mesa. El **orco está sentado** en la silla este desde el inicio; el jugador se sienta en la oeste con E.
+- Resto: 4 columnas, armería en el muro este, barriles, vasijas, rocas, estandartes, 2 cofres que se abren, trampa animada en bucle en (−3, −2), 6 monedas, 1 llave y 1 poción.
 - El jugador aparece en (0, 0, −3) mirando al norte.
 
 ### Controles
-WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E interactuar · Clic derecho + mouse girar la cámara · Rueda zoom.
+WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E interactuar (abrir, sentarse y levantarse) · Clic derecho + mouse girar la cámara · Rueda zoom.
 
 ---
 
@@ -142,9 +152,13 @@ WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E inter
 - 2026-10-16 — Ambientación inicial: **calabozo / mazmorra** (Kenney Mini Dungeon). Protagonista: `character-human`. El orco es candidato a enemigo.
 - 2026-10-16 — Mecánicas prototipadas, todavía sin reglas: moverse, correr, saltar, atacar (solo animación, sin daño), abrir cofres y rejas, y recoger monedas, llaves y pociones.
 
+- 2026-10-16 — **El juego es un juego de cartas en 3D.** Las reglas concretas y cómo va a funcionar se definen más adelante.
+- 2026-10-16 — Hay una **mesa de juego en el centro del calabozo**. El orco espera sentado en un extremo y el jugador se sienta en el otro con E. Ahí se jugarán las partidas.
+
 ### Preguntas abiertas
-- Género y objetivo del jugador: ¿qué hay que hacer para ganar? ¿Cómo se pierde?
-- ¿Hay combate real (vida, daño, enemigos con IA)? ¿Para qué sirven monedas, llaves y pociones?
+- Reglas del juego de cartas: tipos de cartas, turnos, cómo se gana y cómo se pierde una partida.
+- ¿Qué pasa al sentarse a la mesa? (cámara, interfaz de cartas, inicio de partida).
+- ¿Hay varios rivales o mesas? ¿Se mantienen el movimiento, el ataque y los recogibles, o solo sirven de ambientación? ¿Monedas para apostar o comprar cartas?
 - ¿Un solo nivel o varios? ¿Hay tiempo límite o puntaje?
 - Plataforma de entrega: build de Windows (.exe) o WebGL.
 
@@ -172,7 +186,8 @@ WASD mover · Shift correr · Espacio saltar · Clic izquierdo atacar · E inter
 
 ## 9. Próximos pasos sugeridos
 
-1. El usuario prueba la escena MiniDungeon y da retroalimentación sobre velocidad, cámara y colisiones.
-2. Definir las reglas del juego (§6) y escribir el GDD en `Docs/`.
-3. Según las reglas: vida y daño, IA del orco (NavMesh), menú principal, pausa, UI real, sonido y una build de Windows.
+1. El usuario prueba la escena MiniDungeon (incluido sentarse a la mesa) y da retroalimentación.
+2. Definir las reglas del juego de cartas (§6) y escribir el GDD en `Docs/`.
+3. Al sentarse: cámara enfocada en la mesa y estructura base de una partida (mazo, mano, turnos), sin esperar a tener todas las reglas.
+4. Según las reglas: modelos o texturas de cartas, IA del rival, menú principal, pausa, UI real, sonido y una build de Windows.
 4. Evaluar la actualización de MCP for Unity a v10.3.0.
