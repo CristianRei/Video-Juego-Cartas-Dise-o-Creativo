@@ -28,6 +28,6 @@ Diseño Creativo/
 
 ## Requisitos
 
-- Unity 6 (6000.5.9f1) desde Unity Hub
+- Unity 6 (6000.6.6f1) desde Unity Hub
 - Blender 4.x (para los modelos)
 - Git + Git LFS
