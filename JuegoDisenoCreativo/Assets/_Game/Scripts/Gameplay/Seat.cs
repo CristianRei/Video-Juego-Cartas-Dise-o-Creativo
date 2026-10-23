@@ -15,6 +15,10 @@ public class Seat : MonoBehaviour, IInteractable
 
     PlayerController occupant;
 
+    // Avisan cuando el jugador se sienta o se levanta (la mesa de cartas los usa).
+    public event System.Action<PlayerController> PlayerSat;
+    public event System.Action<PlayerController> PlayerStoodUp;
+
     public Vector3 SitPosition => transform.TransformPoint(sitOffset);
     public Quaternion SitRotation => transform.rotation;
     public Vector3 StandPosition => transform.position - transform.forward * standDistance;
@@ -39,11 +43,13 @@ public class Seat : MonoBehaviour, IInteractable
         {
             occupant = null;
             player.StandUp();
+            PlayerStoodUp?.Invoke(player);
         }
         else if (!IsOccupied)
         {
             occupant = player;
             player.SitOn(this);
+            PlayerSat?.Invoke(player);
         }
     }
 }

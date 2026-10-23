@@ -41,6 +41,7 @@ public static class MiniDungeonBuilder
     [MenuItem("Tools/Mini Dungeon/Construir escena demo")]
     public static void Build()
     {
+        ImportTextMeshProResources();
         ConfigureModels();
         if (!AssetDatabase.IsValidFolder(AnimDir.TrimEnd('/')))
             AssetDatabase.CreateFolder("Assets/_Game", "Animations");
@@ -81,6 +82,17 @@ public static class MiniDungeonBuilder
     }
 
     // ---------- Importación y animación ----------
+
+    // Las cartas usan TextMeshPro; sin sus recursos básicos (fuente por defecto) el texto no se ve.
+    static void ImportTextMeshProResources()
+    {
+        if (AssetDatabase.IsValidFolder("Assets/TextMesh Pro")) return;
+        const string package = "Packages/com.unity.ugui/Package Resources/TMP Essential Resources.unitypackage";
+        if (System.IO.File.Exists(System.IO.Path.GetFullPath(package)))
+            AssetDatabase.ImportPackage(package, false);
+        else
+            Debug.LogWarning("[MiniDungeon] No se encontró " + package + ". Importa los recursos con Window > TextMeshPro > Import TMP Essential Resources.");
+    }
 
     static void ConfigureAnimated(string model, params string[] loopingClips)
     {
@@ -293,9 +305,12 @@ public static class MiniDungeonBuilder
             Place("column", p.Item1, p.Item2, 0f, 0f, props);
 
         // Mesa de juego en el centro: el jugador se sienta al oeste (E), el orco al este.
-        Place("table", 0, TableZ, 0f, 0f, props);
-        AddSeat(-ChairDistance, 90f, props);
+        var table = Place("table", 0, TableZ, 0f, 0f, props);
+        var playerSeat = AddSeat(-ChairDistance, 90f, props);
         var orcSeat = AddSeat(ChairDistance, -90f, props);
+        var cardTable = table.AddComponent<CardTable>();
+        cardTable.playerSeat = playerSeat;
+        cardTable.opponentSeat = orcSeat;
 
         // Armería en el muro este.
         Place("shield-round", 4.4f, 0f, -90f, 0.19f, props, "none");

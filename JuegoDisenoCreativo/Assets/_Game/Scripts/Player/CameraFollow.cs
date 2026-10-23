@@ -23,9 +23,9 @@ public class CameraFollow : MonoBehaviour
     [Tooltip("Altura de la cámara sobre la base de la silla.")]
     public float seatedHeight = 1.05f;
     [Tooltip("Distancia al frente de la silla a la que mira (centro de la mesa).")]
-    public float seatedLookAhead = 1.0f;
-    public float seatedLookHeight = 0.5f;
-    public float seatedFieldOfView = 55f;
+    public float seatedLookAhead = 0.85f;
+    public float seatedLookHeight = 0.4f;
+    public float seatedFieldOfView = 60f;
     [Tooltip("Velocidad de la transición entre vistas (1 = un segundo).")]
     public float transitionSpeed = 2f;
 
